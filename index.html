@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RPN Practice</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f0f0;
+      margin: 0; 
+      padding: 0; 
+    }
+    .container {
+      max-width: 600px;
+      margin: 60px auto;
+      padding: 20px;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+    h1 {
+      text-align: center;
+      margin-top: 0;
+    }
+    .expression-box {
+      background-color: #fafafa;
+      border: 1px solid #dddddd;
+      padding: 10px;
+      margin: 20px 0;
+      font-size: 1.2em;
+      border-radius: 5px;
+      text-align: center;
+    }
+    label {
+      display: inline-block;
+      margin: 8px 0 4px;
+    }
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border-radius: 4px;
+      border: 1px solid #cccccc;
+      font-size: 1em;
+      margin-bottom: 10px;
+    }
+    button {
+      cursor: pointer;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      font-size: 1em;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    .btn-check {
+      background-color: #007acc;
+      color: #ffffff;
+    }
+    .btn-new {
+      background-color: #36a64f;
+      color: #ffffff;
+    }
+    .result {
+      font-weight: bold;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .correct {
+      background-color: #c8f7c5;
+      color: #2b542c;
+    }
+    .incorrect {
+      background-color: #f7c5c5;
+      color: #6d2323;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>RPN Practice</h1>
+    <div class="expression-box" id="expressionArea">Loading...</div>
+
+    <div>
+      <label for="userResult">Enter your computed result:</label>
+      <input type="text" id="userResult" placeholder="Your answer here" />
+    </div>
+
+    <button class="btn-check" id="checkBtn">Check</button>
+    <button class="btn-new" id="newExpressionBtn">New Expression</button>
+
+    <div id="resultMessage" class="result hidden"></div>
+  </div>
+
+  <script>
+    // --- Global Variables ---
+    let currentRPN = "";
+    let currentAnswer = 0; // numeric result of the current RPN expression
+
+    // --- Utility: random integer in [min, max] ---
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // --- Generate a random digit [1..9] ---
+    function randomDigit() {
+      return randInt(1, 9).toString();
+    }
+
+    // --- Generate a random operator from + - * / ---
+    function randomOperator() {
+      const ops = ["+", "-", "*", "/"];
+      return ops[randInt(0, ops.length - 1)];
+    }
+
+    // --- Generate a valid random RPN expression ---
+    // We'll produce a random length, ensuring final stack size is exactly 1.
+    function generateRPNExpression() {
+      let tokens = [];
+      let stackSize = 0;
+      // We'll allow from 3..7 tokens
+      let totalTokens = randInt(3, 7);
+
+      for (let i = 0; i < totalTokens - 1; i++) {
+        if (stackSize < 2) {
+          // We must add a digit (because we don't have enough to pop for an operator)
+          tokens.push(randomDigit());
+          stackSize++;
+        } else {
+          // We can choose: either add a digit or add an operator
+          if (Math.random() < 0.5) {
+            // add digit
+            tokens.push(randomDigit());
+            stackSize++;
+          } else {
+            // add operator
+            tokens.push(randomOperator());
+            stackSize--;
+          }
+        }
+      }
+      // Make sure final stack size is 1: if stackSize > 1, add enough operators
+      while (stackSize > 1) {
+        tokens.push(randomOperator());
+        stackSize--;
+      }
+      return tokens.join(" ");
+    }
+
+    // --- Evaluate an RPN expression, return numeric result (float) ---
+    // We'll do standard RPN stack-based evaluation. 
+    // If we get a division, we do floating-point division, etc.
+    function evaluateRPN(expr) {
+      const tokens = expr.split(/\s+/);
+      const stack = [];
+      for (let t of tokens) {
+        if (/^\d+$/.test(t)) {
+          // It's a digit
+          stack.push(parseFloat(t));
+        } else {
+          // It's an operator
+          const b = stack.pop();
+          const a = stack.pop();
+          let res = 0;
+          switch(t) {
+            case "+": res = a + b; break;
+            case "-": res = a - b; break;
+            case "*": res = a * b; break;
+            case "/": 
+              // We'll do float division
+              res = a / b; 
+              break;
+          }
+          stack.push(res);
+        }
+      }
+      // Final result is the only item on the stack
+      return stack.pop();
+    }
+
+    // --- Generate a fresh expression, set up the page ---
+    function newExpression() {
+      currentRPN = generateRPNExpression();
+      currentAnswer = evaluateRPN(currentRPN);
+
+      // Show expression
+      document.getElementById("expressionArea").textContent = currentRPN;
+      
+      // Clear out old messages and user input
+      document.getElementById("userResult").value = "";
+      const msgDiv = document.getElementById("resultMessage");
+      msgDiv.classList.add("hidden");
+      msgDiv.classList.remove("correct", "incorrect");
+      msgDiv.textContent = "";
+    }
+
+    // --- Check the user-provided answer ---
+    function checkAnswer() {
+      const userVal = document.getElementById("userResult").value.trim();
+      const msgDiv = document.getElementById("resultMessage");
+
+      // Guard: if user hasn't typed anything
+      if (!userVal) {
+        msgDiv.textContent = "Please enter a result first.";
+        msgDiv.classList.remove("hidden", "correct", "incorrect");
+        msgDiv.classList.add("incorrect");
+        return;
+      }
+
+      // We'll parse the user's answer as float
+      const userNum = parseFloat(userVal);
+
+      // We'll do a small check with tolerance for floating answers:
+      const eps = 1e-5;
+      if (Math.abs(userNum - currentAnswer) < eps) {
+        // Correct
+        msgDiv.textContent = "Correct!";
+        msgDiv.classList.remove("hidden", "incorrect");
+        msgDiv.classList.add("correct");
+      } else {
+        // Incorrect
+        msgDiv.textContent = "Incorrect. The correct answer is: " + currentAnswer;
+        msgDiv.classList.remove("hidden", "correct");
+        msgDiv.classList.add("incorrect");
+      }
+    }
+
+    // --- Initialize on load ---
+    window.addEventListener("DOMContentLoaded", () => {
+      // Hook up buttons
+      document.getElementById("checkBtn").addEventListener("click", checkAnswer);
+      document.getElementById("newExpressionBtn").addEventListener("click", newExpression);
+
+      // Generate initial expression
+      newExpression();
+    });
+  </script>
+</body>
+</html>
